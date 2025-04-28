@@ -35,7 +35,6 @@
     let filteredItems = [];
     let currentPage = 1;
     const itemsPerPage = 60;
-    let hls; // variável global para controlar o hls.js
 
     const renderItem = (container) => (item) => {
       const card = document.createElement('div');
@@ -54,39 +53,31 @@
       };
 
       if (isValidVideoLink(item.url)) {
-        player.classList.remove('hidden');
-
-        if (item.url.endsWith('.m3u8')) {
-          if (player.canPlayType('application/vnd.apple.mpegurl')) {
-            // Suporte nativo
-            player.src = item.url;
-            player.load();
+        if (item.url.endsWith('.m3u8') && Hls.isSupported()) {
+          const hls = new Hls({
+            xhrSetup: function (xhr, url) {
+              xhr.withCredentials = true; // Envia credenciais para o servidor
+            }
+          });
+          hls.loadSource(item.url);
+          hls.attachMedia(player);
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
             player.play().catch(err => {
               console.warn("Autoplay bloqueado, clique em play.");
             });
-          } else if (Hls.isSupported()) {
-            // Usa HLS.js
-            if (hls) {
-              hls.destroy();
-            }
-            hls = new Hls();
-            hls.loadSource(item.url);
-            hls.attachMedia(player);
-            hls.on(Hls.Events.MANIFEST_PARSED, function () {
-              player.play().catch(err => {
-                console.warn("Autoplay bloqueado, clique em play.");
-              });
-            });
-          } else {
-            console.error("Este navegador não suporta reprodução de HLS.");
-          }
-        } else {
-          // Outros formatos
-          player.src = item.url;
-          player.load();
-          player.play().catch(err => {
-            console.warn("Autoplay bloqueado, clique em play.");
           });
+          player.classList.remove('hidden');
+        } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+          // Safari nativo (iOS)
+          player.src = item.url;
+          player.addEventListener('loadedmetadata', () => {
+            player.play().catch(err => {
+              console.warn("Autoplay bloqueado, clique em play.");
+            });
+          });
+          player.classList.remove('hidden');
+        } else {
+          window.open(item.url, '_blank');
         }
       } else {
         console.warn("Link não válido para vídeo:", item.url);
@@ -155,6 +146,7 @@
     fileInput.addEventListener('change', handleFile);
     searchInput.addEventListener('input', filterItems);
 
+    // Lista de teste inicial
     const fallbackM3U = `#EXTM3U
 #EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png",Elite S08E07
 https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
