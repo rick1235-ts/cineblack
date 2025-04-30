@@ -3,24 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎮 Rykelmy Filmes 2.0</title>
+  <title>🎬 Rykelmy Filmes 2.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body class="bg-black text-white font-sans min-h-screen flex flex-col">
   <div class="p-6 max-w-7xl mx-auto flex-1">
-    <h1 class="text-4xl font-bold mb-6 text-center">🎮 Rykelmy Filmes</h1>
+    <h1 class="text-4xl font-bold mb-6 text-center">🎬 Rykelmy Filmes</h1>
 
     <div class="flex flex-col md:flex-row gap-4 mb-6 justify-center">
       <input type="file" id="fileInput" accept=".m3u,.txt" class="file:bg-gray-800 file:border-none file:px-4 file:py-2 file:rounded file:text-white file:cursor-pointer" />
-      <input type="text" id="searchInput" placeholder="Pesquisar..." class="p-3 rounded bg-gray-800 text-white placeholder-gray-400 border border-gray-600 w-full md:w-96" />
-      <button id="baixarListaBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">👅 Baixar Lista
-      </button>
+      <input type="text" id="searchInput" placeholder="Pesquisar..." class="p-3 rounded bg-gray-800 text-white placeholder-gray-400 border border-gray-600 w-full md:w-80" />
+      <select id="categorySelect" class="p-3 rounded bg-gray-800 text-white border border-gray-600 w-full md:w-60">
+        <option value="">Todas as Categorias</option>
+      </select>
+      <button id="baixarListaBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">📥 Baixar Lista</button>
     </div>
 
     <div id="playerContainer" class="relative mb-10 hidden">
       <video id="player" controls muted class="w-full max-w-4xl mx-auto block rounded-lg shadow-2xl"></video>
-      <button id="closePlayer" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full">&#10006;</button>
+      <button id="closePlayer" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full">✖</button>
     </div>
 
     <h2 class="text-2xl mb-4">Conteúdo Disponível</h2>
@@ -40,6 +42,7 @@
     const player = document.getElementById('player');
     const closePlayer = document.getElementById('closePlayer');
     const loadMoreContainer = document.getElementById('loadMoreContainer');
+    const categorySelect = document.getElementById('categorySelect');
 
     let allItems = [];
     let filteredItems = [];
@@ -54,7 +57,10 @@
         <img src="${item.thumb || 'https://dummyimage.com/300x169/444/fff.png&text=Sem+Imagem'}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full"/>
         <h3 class="text-sm truncate">${item.title}</h3>
       `;
-      card.onclick = () => openVideoLink(item);
+      card.onclick = () => {
+        openVideoLink(item);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
       container.appendChild(card);
     };
 
@@ -63,7 +69,6 @@
         hlsInstance.destroy();
         hlsInstance = null;
       }
-
       if (/\.m3u8$/i.test(item.url) && Hls.isSupported()) {
         hlsInstance = new Hls();
         hlsInstance.loadSource(item.url);
@@ -114,11 +119,27 @@
 
     const filterItems = () => {
       const search = searchInput.value.toLowerCase();
-      filteredItems = allItems.filter(item => item.title.toLowerCase().includes(search));
+      const category = categorySelect.value;
+      filteredItems = allItems.filter(item => {
+        const matchTitle = item.title.toLowerCase().includes(search);
+        const matchCategory = !category || item.group === category;
+        return matchTitle && matchCategory;
+      });
       currentPage = 1;
       contentDiv.innerHTML = '';
       renderPage();
       setupLoadMore();
+    };
+
+    const updateCategories = () => {
+      const categories = Array.from(new Set(allItems.map(item => item.group).filter(Boolean))).sort();
+      categorySelect.innerHTML = `<option value="">Todas as Categorias</option>`;
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
     };
 
     const parseM3U = (text) => {
@@ -128,11 +149,13 @@
         if (lines[i].startsWith('#EXTINF')) {
           const titleMatch = lines[i].match(/,(.*)/);
           const logoMatch = lines[i].match(/tvg-logo="(.*?)"/);
+          const groupMatch = lines[i].match(/group-title="(.*?)"/);
           const title = titleMatch ? titleMatch[1].trim() : 'Sem título';
           const thumb = logoMatch ? logoMatch[1].trim() : null;
+          const group = groupMatch ? groupMatch[1].trim() : '';
           const url = lines[i + 1]?.trim();
           if (title && url && url.startsWith('http') && /\.(mp4|m3u8|ts|avi|mov|mpg|flv|webm)(\?.*)?$/i.test(url)) {
-            items.push({ title, url, thumb });
+            items.push({ title, url, thumb, group });
           }
         }
       }
@@ -142,10 +165,10 @@
     const handleFile = (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = (event) => {
         allItems = parseM3U(event.target.result);
+        updateCategories();
         filterItems();
       };
       reader.readAsText(file);
@@ -153,6 +176,7 @@
 
     fileInput.addEventListener('change', handleFile);
     searchInput.addEventListener('input', filterItems);
+    categorySelect.addEventListener('change', filterItems);
 
     document.getElementById("baixarListaBtn").addEventListener("click", async () => {
       try {
@@ -160,6 +184,7 @@
         const res = await fetch(url);
         const data = await res.text();
         allItems = parseM3U(data);
+        updateCategories();
         filterItems();
       } catch (err) {
         alert("Erro ao baixar a lista: " + err.message);
@@ -167,13 +192,14 @@
     });
 
     const fallbackM3U = `#EXTM3U
-#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png",Big Buck Bunny
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png" group-title="Animação",Big Buck Bunny
 https://www.w3schools.com/html/mov_bbb.mp4
-#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/74/Globoplay_logo_2023.svg",Live Demo M3U8
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/74/Globoplay_logo_2023.svg" group-title="Ao Vivo",Live Demo M3U8
 https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`;
 
     window.onload = () => {
       allItems = parseM3U(fallbackM3U);
+      updateCategories();
       filterItems();
     };
   </script>
