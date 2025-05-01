@@ -178,10 +178,12 @@
     searchInput.addEventListener('input', filterItems);
     categorySelect.addEventListener('change', filterItems);
 
+    // BOTÃO MODIFICADO COM PROXY
     document.getElementById("baixarListaBtn").addEventListener("click", async () => {
       try {
-        const url = "http://invictosplay.pro/get.php?username=113064479540&password=006170123905&type=m3u_plus&output=mpegts";
-        const res = await fetch(url);
+        const proxy = "https://corsproxy.io/?";
+        const originalUrl = "http://invictosplay.pro/get.php?username=113064479540&password=006170123905&type=m3u_plus&output=mpegts";
+        const res = await fetch(proxy + encodeURIComponent(originalUrl));
         const data = await res.text();
         allItems = parseM3U(data);
         updateCategories();
