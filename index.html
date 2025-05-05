@@ -53,7 +53,7 @@
       const card = document.createElement('div');
       card.className = 'bg-gray-800 p-2 rounded-xl cursor-pointer hover:scale-105 transition duration-300 overflow-hidden';
       card.innerHTML = `
-        <img src="${item.thumb || 'https://dummyimage.com/300x169/444/fff.png&text=Sem+Imagem'}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full"/>
+        <img src="${item.thumb || 'https://dummyimage.com/300x169/2e2e2e/ffffff.png&text=Sem+logo+no+momento'}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full"/>
         <h3 class="text-sm truncate">${item.title}</h3>
       `;
       card.onclick = () => {
@@ -178,7 +178,6 @@
     searchInput.addEventListener('input', filterItems);
     categorySelect.addEventListener('change', filterItems);
 
-    // ✅ CORRIGIDO COM HTTPS
     document.getElementById("baixarListaBtn").addEventListener("click", async () => {
       try {
         const url = "https://invictosplay.pro/get.php?username=875124068733&password=440327002313&type=m3u_plus&output=mpegts";
@@ -193,7 +192,7 @@
     });
 
     const fallbackM3U = `#EXTM3U
-#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png" group-title="Animação",Big Buck Bunny
+#EXTINF:-1 tvg-logo="" group-title="Animação",Big Buck Bunny
 https://www.w3schools.com/html/mov_bbb.mp4`;
 
     window.onload = () => {
