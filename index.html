@@ -33,6 +33,11 @@
     © 2025 - Rykelmy Filmes
   </footer>
 
+  <!-- Spinner -->
+  <div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-green-500 border-opacity-75"></div>
+  </div>
+
   <script>
     const fileInput = document.getElementById('fileInput');
     const searchInput = document.getElementById('searchInput');
@@ -42,6 +47,7 @@
     const closePlayer = document.getElementById('closePlayer');
     const loadMoreContainer = document.getElementById('loadMoreContainer');
     const categorySelect = document.getElementById('categorySelect');
+    const spinner = document.getElementById("loadingSpinner");
 
     let allItems = [];
     let filteredItems = [];
@@ -49,11 +55,14 @@
     const itemsPerPage = 60;
     let hlsInstance = null;
 
+    const showSpinner = () => spinner.classList.remove("hidden");
+    const hideSpinner = () => spinner.classList.add("hidden");
+
     const renderItem = (container) => (item) => {
       const card = document.createElement('div');
       card.className = 'bg-gray-800 p-2 rounded-xl cursor-pointer hover:scale-105 transition duration-300 overflow-hidden';
       card.innerHTML = `
-        <img src="${item.thumb || 'https://dummyimage.com/300x169/2e2e2e/ffffff.png&text=Sem+logo+no+momento'}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full"/>
+        <img src="${item.thumb || 'https://dummyimage.com/300x169/444/fff.png&text=Sem+Imagem'}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full"/>
         <h3 class="text-sm truncate">${item.title}</h3>
       `;
       card.onclick = () => {
@@ -150,7 +159,7 @@
           const logoMatch = lines[i].match(/tvg-logo="(.*?)"/);
           const groupMatch = lines[i].match(/group-title="(.*?)"/);
           const title = titleMatch ? titleMatch[1].trim() : 'Sem título';
-          const thumb = logoMatch ? logoMatch[1].trim() : null;
+          const thumb = logoMatch ? logoMatch[1].trim() : 'https://dummyimage.com/300x169/444/fff.png&text=Sem+Logo+No+Momento';
           const group = groupMatch ? groupMatch[1].trim() : '';
           const url = lines[i + 1]?.trim();
 
@@ -179,6 +188,7 @@
     categorySelect.addEventListener('change', filterItems);
 
     document.getElementById("baixarListaBtn").addEventListener("click", async () => {
+      showSpinner();
       try {
         const url = "https://invictosplay.pro/get.php?username=875124068733&password=440327002313&type=m3u_plus&output=mpegts";
         const res = await fetch(url);
@@ -188,11 +198,13 @@
         filterItems();
       } catch (err) {
         alert("Erro ao baixar a lista: " + err.message);
+      } finally {
+        hideSpinner();
       }
     });
 
     const fallbackM3U = `#EXTM3U
-#EXTINF:-1 tvg-logo="" group-title="Animação",Big Buck Bunny
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/7/7a/Logonetflix.png" group-title="Animação",Big Buck Bunny
 https://www.w3schools.com/html/mov_bbb.mp4`;
 
     window.onload = () => {
