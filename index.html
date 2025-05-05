@@ -154,7 +154,6 @@
           const group = groupMatch ? groupMatch[1].trim() : '';
           const url = lines[i + 1]?.trim();
 
-          // Mostrar apenas links que contenham ".mp4"
           if (url && url.startsWith('http') && url.includes('.mp4')) {
             items.push({ title, url, thumb, group });
           }
@@ -179,9 +178,10 @@
     searchInput.addEventListener('input', filterItems);
     categorySelect.addEventListener('change', filterItems);
 
+    // ✅ CORRIGIDO COM HTTPS
     document.getElementById("baixarListaBtn").addEventListener("click", async () => {
       try {
-        const url = "http://invictosplay.pro/get.php?username=875124068733&password=440327002313&type=m3u_plus&output=mpegts";
+        const url = "https://invictosplay.pro/get.php?username=875124068733&password=440327002313&type=m3u_plus&output=mpegts";
         const res = await fetch(url);
         const data = await res.text();
         allItems = parseM3U(data);
