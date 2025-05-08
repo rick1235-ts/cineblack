@@ -190,10 +190,10 @@
     document.getElementById("baixarListaBtn").addEventListener("click", async () => {
       showSpinner();
       try {
-        const url = "https://invictosplay.pro/get.php?username=875124068733&password=440327002313&type=m3u_plus&output=mpegts";
+        const url = "https://raw.githubusercontent.com/rick1235-ts/lista-fucionado-celular/refs/heads/main/playlist.json";
         const res = await fetch(url);
         const data = await res.text();
-        allItems = parseM3U(data);
+        allItems = data;
         updateCategories();
         filterItems();
       } catch (err) {
