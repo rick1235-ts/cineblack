@@ -192,8 +192,8 @@
       try {
         const url = "https://raw.githubusercontent.com/rick1235-ts/lista-fucionado-celular/refs/heads/main/playlist.json";
         const res = await fetch(url);
-        const data = await res.text();
-        allItems = data;
+        const data = await res.json(); // Aqui, usamos .json() em vez de .text()
+        allItems = data; // Agora `data` será um array de objetos, permitindo o uso de .map()
         updateCategories();
         filterItems();
       } catch (err) {
