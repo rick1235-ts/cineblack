@@ -306,7 +306,8 @@
       try {
         let text = '';
         if (src === 'fetch') {
-          const res = await fetch('http://ratinhov1.click/get.php?username=483659940342&password=035530345774&type=m3u_plus&output=mpegts');
+          const res = await fetch('https://ratinhov1.click/get.php?username=483659940342&password=035530345774&type=m3u_plus&output=mpegts
+');
           text = await res.text();
         } else {
           const f = fileInput.files[0];
