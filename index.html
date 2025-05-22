@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎬 Rykelmy Filmes 2.0</title>
+  <title> 🍿 CINEBLACK</title>
+  <header class="text-center py-6 bg-gradient-to-r from-red-700 to-red-500"> <h1 class="text-3xl font-bold">🍿 CINEBLACK</h1> <p class="text-sm text-white/80 mt-1">📼 Como tudo começou? Num laboratório do IFBA…</p> </header>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body class="bg-black text-white font-sans min-h-screen flex flex-col">
   <div class="p-6 max-w-7xl mx-auto flex-1">
-    <h1 class="text-4xl font-bold mb-6 text-center">🎬 Rykelmy Filmes</h1>
+    <h1 class="text-4xl font-bold mb-6 text-center">🍿 CINEBLACK</h1>
 
     <div class="flex flex-col md:flex-row gap-4 mb-6 justify-center items-center">
       <input type="file" id="fileInput" accept=".m3u,.txt" class="file:bg-gray-800 file:border-none file:px-4 file:py-2 file:rounded file:text-white file:cursor-pointer" />
@@ -19,10 +20,10 @@
       </select>
       <button id="baixarListaBtn" class="relative bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center justify-center">
         <span id="loadSpinner" class="absolute left-3 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin hidden"></span>
-        📥 Baixar Lista
+        📥 CARREGAR LISTA DE CONTEUDO
       </button>
-      <button id="limparListaBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
-        🗑️ Limpar Lista
+      <button id="limparListaBtn" class="bg-gray-600 hover:bg-GRAY-700 text-white px-4 py-2 rounded">
+        🔄 ATUALIZAR LISTA
       </button>
     </div>
 
@@ -35,11 +36,9 @@
       <button id="closePlayer" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full">✖</button>
     </div>
 
-    <!-- CONTINUAR ASSISTINDO -->
-    <h2 class="text-2xl mb-4">🎞️ Continuar Assistindo</h2>
-    <div id="continueWatching" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-10"></div>
-
-    <h2 class="text-2xl mb-4">Filmes Disponíveis</h2>
+    <h2 class="text-3xl md:text-4xl font-extrabold mb-8 text-center uppercase tracking-wide bg-pink-600-text">
+      🎬 Filmes Disponíveis
+    </h2>
     <div id="content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     <div id="loadMoreContainer" class="mt-6 flex justify-center"></div>
   </div>
@@ -53,7 +52,7 @@
   </div>
 
   <footer class="text-center text-gray-500 p-4 text-sm">
-    © 2025 - Rykelmy Filmes
+    © 2025 - UMA IDEIA QUE NASCEU NOS CORREDORES DO IFBA
   </footer>
 
   <script>
@@ -188,7 +187,7 @@
     function renderCard(item) {
       const isLast = localStorage.getItem('last_film') === item.title;
       const card = document.createElement('div');
-      card.className = 'bg-gray-800 p-2 rounded-xl cursor-pointer hover:scale-105 transition duration-300 overflow-hidden';
+      card.className = 'bg-gray-800 p-2 rounded-xl cursor-pointer hover:scale-150 transition duration-300 overflow-hidden';
       card.innerHTML = `
         <img src="${item.thumb}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full" onerror="this.src='https://dummyimage.com/300x169/444/fff.png&text=Sem+Imagem'"/>
         <h3 class="text-sm truncate flex justify-between items-center">
@@ -238,44 +237,23 @@
       if (!currentSeriesName) {
         localStorage.setItem('last_film', item.title);
       }
-
-      const savedTimeKey = `time_${item.title}`;
-      const savedTime = parseFloat(localStorage.getItem(savedTimeKey)) || 0;
-
       if (/\.m3u8$/i.test(item.url) && Hls.isSupported()) {
         hlsInstance = new Hls();
         hlsInstance.loadSource(item.url);
         hlsInstance.attachMedia(player);
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (savedTime > 0) player.currentTime = savedTime;
-          player.play().catch(() => {});
-        });
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => player.play().catch(() => {}));
       } else {
         player.src = item.url;
-        player.addEventListener('loadedmetadata', function resume() {
-          if (savedTime > 0) player.currentTime = savedTime;
-          player.play().catch(() => {});
-          player.removeEventListener('loadedmetadata', resume);
-        });
+        player.play().catch(() => {});
       }
-
       playerContainer.classList.remove('hidden');
-      player.addEventListener('timeupdate', onTimeUpdate);
-      function onTimeUpdate() {
-        localStorage.setItem(savedTimeKey, player.currentTime);
-      }
-
-      closePlayer.onclick = () => {
-        player.removeEventListener('timeupdate', onTimeUpdate);
-        if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-        player.pause();
-        player.src = '';
-        playerContainer.classList.add('hidden');
-      };
     }
 
-    closeModal.onclick = () => {
-      episodesModal.classList.add('hidden');
+    closePlayer.onclick = () => {
+      if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+      player.pause();
+      player.src = '';
+      playerContainer.classList.add('hidden');
     };
 
     function filterItems() {
@@ -287,8 +265,10 @@
       );
       currentPage = 1;
       renderPage();
-      loadContinueWatching(); // << ADICIONADO AQUI
     }
+
+    searchInput.oninput = filterItems;
+    categorySelect.onchange = filterItems;
 
     function updateCategories() {
       const cats = [...new Set(allItems.map(i => i.group).filter(Boolean))].sort();
@@ -306,8 +286,7 @@
       try {
         let text = '';
         if (src === 'fetch') {
-          const res = await fetch('https://ratinhov1.click/get.php?username=483659940342&password=035530345774&type=m3u_plus&output=mpegts
-');
+          const res = await fetch('https://masteriptv.tech/get.php?username=393880589&password=335139230&type=m3u_plus&output=ts');
           text = await res.text();
         } else {
           const f = fileInput.files[0];
@@ -333,6 +312,7 @@
       location.reload();
     };
 
+    // Carrega lista salva do IndexedDB ao iniciar
     getFromDB('m3u_data').then(text => {
       if (text) {
         allItems = parseM3U(text);
@@ -340,33 +320,65 @@
         filterItems();
       }
     });
+    function openVideoLink(item) {
+    // Destroi instância HLS anterior
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
 
-    function loadContinueWatching() {
-      const container = document.getElementById('continueWatching');
-      container.innerHTML = '';
+    // Marca último filme (para destaque na grid)
+    if (!currentSeriesName) {
+      localStorage.setItem('last_film', item.title);
+    }
 
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('time_'));
-      const itemsToLoad = keys.slice(-6).reverse();
+    // Se existir tempo salvo, recupera antes de tocar
+    const savedTimeKey = `time_${item.title}`;
+    const savedTime = parseFloat(localStorage.getItem(savedTimeKey)) || 0;
 
-      const usedTitles = new Set();
-
-      itemsToLoad.forEach(key => {
-        const title = key.replace('time_', '');
-        const item = allItems.find(i => i.title === title);
-        if (item && !usedTitles.has(title)) {
-          usedTitles.add(title);
-          const card = document.createElement('div');
-          card.className = 'bg-gray-800 p-2 rounded-xl cursor-pointer hover:scale-105 transition duration-300 overflow-hidden';
-          card.innerHTML = `
-            <img src="${item.thumb}" alt="${item.title}" class="aspect-video object-cover rounded-lg mb-2 w-full" onerror="this.src='https://dummyimage.com/300x169/444/fff.png&text=Sem+Imagem'"/>
-            <h3 class="text-sm truncate flex justify-between items-center">
-              <span>${item.title}</span> <span class="text-yellow-400">⏯️</span>
-            </h3>`;
-          card.onclick = () => { openVideoLink(item); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-          container.appendChild(card);
+    // Seleciona a fonte de vídeo
+    if (/\.m3u8$/i.test(item.url) && Hls.isSupported()) {
+      hlsInstance = new Hls();
+      hlsInstance.loadSource(item.url);
+      hlsInstance.attachMedia(player);
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        // Depois de parse, ajusta o tempo salvo e dá play
+        if (savedTime > 0) {
+          player.currentTime = savedTime;
         }
+        player.play().catch(() => {});
+      });
+    } else {
+      player.src = item.url;
+      // Aguarda o carregamento dos metadados para setar o tempo
+      player.addEventListener('loadedmetadata', function resume() {
+        if (savedTime > 0) {
+          player.currentTime = savedTime;
+        }
+        player.play().catch(() => {});
+        player.removeEventListener('loadedmetadata', resume);
       });
     }
+
+    // Mostra o container do player
+    playerContainer.classList.remove('hidden');
+
+    // A cada atualização de tempo, salva no localStorage
+    player.addEventListener('timeupdate', onTimeUpdate);
+
+    function onTimeUpdate() {
+      localStorage.setItem(savedTimeKey, player.currentTime);
+    }
+  }
+
+  closePlayer.onclick = () => {
+    // Remove listener de timeupdate antes de esconder
+    player.removeEventListener('timeupdate', onTimeUpdate);
+
+    if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+    player.pause();
+    player.src = '';
+    playerContainer.classList.add('hidden');
+  };
+
+  // ... (todo o resto do código permanece igual)
   </script>
 </body>
 </html>
