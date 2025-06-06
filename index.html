@@ -16,6 +16,10 @@
                 padding: 2rem;
             }
         }
+        /* Estilos para o overlay do modal de detalhes */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
     </style>
 </head>
 <body class="bg-black text-white font-sans min-h-screen flex flex-col">
@@ -82,11 +86,36 @@
         </div>
     </div>
 
+    <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center z-50 modal-overlay">
+        <div class="bg-gray-900 rounded-xl p-6 max-w-2xl w-full relative mx-4 max-h-[90vh] overflow-y-auto">
+            <button id="closeDetailsModal" class="absolute top-3 right-3 text-white text-2xl font-bold">&times;</button>
+            <div class="flex flex-col md:flex-row gap-6">
+                <img id="detailPoster" src="https://dummyimage.com/200x300/444/fff.png&text=Carregando..." alt="Pôster" class="w-full md:w-1/3 rounded-lg object-cover flex-shrink-0" onerror="this.src='https://dummyimage.com/200x300/444/fff.png&text=Sem+Pôster'"/>
+                <div class="flex-1">
+                    <h3 id="detailTitle" class="text-3xl font-bold mb-2">Carregando...</h3>
+                    <p id="detailYearGenre" class="text-gray-400 text-sm mb-3">Ano | Gênero</p>
+                    <p id="detailPlot" class="text-gray-300 text-base mb-4">Carregando sinopse...</p>
+                    <p id="detailActors" class="text-gray-400 text-sm mb-2"><strong>Elenco:</strong> Carregando...</p>
+                    <p id="detailRating" class="text-gray-400 text-sm mb-4"><strong>Avaliação IMDb:</strong> Carregando...</p>
+                    <button id="playMovieButton" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold w-full transition-colors flex items-center justify-center">
+                        ▶️ Assistir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="text-center text-gray-400 p-4 text-sm mt-auto">
         © 2025 - UMA IDEIA QUE NASCEU NOS CORREDORES DO IFBA
     </footer>
 
     <script>
+        // --- CHAVE DA OMDb API ---
+        // ATENÇÃO: SUBSTITUA 'SUA_CHAVE_AQUI' PELA SUA CHAVE REAL DA OMDb API!
+        // Obtenha uma em http://www.omdbapi.com/apikey.aspx
+        const OMDb_API_KEY = 'SUA_CHAVE_AQUI'; 
+        // --- FIM DA CHAVE ---
+
         const searchInput = document.getElementById('searchInput');
         const categorySelect = document.getElementById('categorySelect');
         const baixarBtn = document.getElementById('baixarListaBtn');
@@ -107,34 +136,45 @@
         const seriesSection = document.getElementById('seriesSection');
         const showMoviesBtn = document.getElementById('showMoviesBtn');
         const showSeriesBtn = document.getElementById('showSeriesBtn');
-        const moviesGrid = document.getElementById('moviesGrid'); // Agora é moviesGrid, não moviesWrapper
+        const moviesGrid = document.getElementById('moviesGrid');
         const seriesGrid = document.getElementById('seriesGrid');
 
-        let allItems = []; // Todos os itens brutos da lista M3U
-        let filteredItems = []; // Itens após aplicação de filtro de busca e categoria
+        // NOVO: Elementos do Modal de Detalhes
+        const detailsModal = document.getElementById('detailsModal');
+        const closeDetailsModal = document.getElementById('closeDetailsModal');
+        const detailPoster = document.getElementById('detailPoster');
+        const detailTitle = document.getElementById('detailTitle');
+        const detailYearGenre = document.getElementById('detailYearGenre');
+        const detailPlot = document.getElementById('detailPlot');
+        const detailActors = document.getElementById('detailActors');
+        const detailRating = document.getElementById('detailRating');
+        const playMovieButton = document.getElementById('playMovieButton');
 
-        // Variáveis para guardar filmes e séries já agrupados para renderização
+        let allItems = []; 
+        let filteredItems = [];
+
         let moviesToDisplay = [];
         let seriesToDisplay = {};
 
         let hlsInstance = null;
-        // REMOVIDO: let mySwiper = null; // Não precisamos mais do Swiper
 
         let currentSeriesName = null;
         let currentSeriesEps = [];
         let currentEpIndex = null;
+        let currentPlayItem = null; // Para guardar o item a ser reproduzido do modal de detalhes
 
         const dbName = 'RykelmyFilmesDB';
-        // ATENÇÃO: Incrementada a versão do banco de dados.
-        // Se ainda der erro de IndexedDB, pode tentar 3, 4, etc., e/ou limpe os dados do site no navegador.
-        const dbVersion = 2;
+        const dbVersion = 2; // Versão do IndexedDB
         const storeName = 'm3uStore';
 
         // --- Funções de IndexedDB ---
         function openDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(dbName, dbVersion);
-                request.onerror = () => reject(request.error);
+                request.onerror = (event) => {
+                    console.error("Erro IndexedDB ao abrir:", event.target.error);
+                    reject(event.target.error);
+                };
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
                     if (!db.objectStoreNames.contains(storeName)) {
@@ -194,7 +234,6 @@
             const series = {};
             const movies = [];
             items.forEach(item => {
-                // Regex para capturar "Nome da Série SXXEXX"
                 const match = item.title.match(/^(.*?)[\s\.-]?[sS](\d+)[eE](\d+)/);
                 if (match) {
                     const name = match[1].trim();
@@ -205,12 +244,11 @@
                 }
             });
 
-            // Ordenar episódios de séries por temporada e episódio
             for (const name in series) {
                 series[name].sort((a, b) => {
                     const aMatch = a.title.match(/[sS](\d+)[eE](\d+)/);
                     const bMatch = b.title.match(/[sS](\d+)[eE](\d+)/);
-                    if (!aMatch || !bMatch) return 0; // Caso não encontre SXXEXX
+                    if (!aMatch || !bMatch) return 0;
                     const sA = parseInt(aMatch[1]);
                     const eA = parseInt(aMatch[2]);
                     const sB = parseInt(bMatch[1]);
@@ -220,34 +258,67 @@
                     return eA - eB;
                 });
             }
-
             return { series, movies };
+        }
+
+        // --- FUNÇÃO PARA BUSCAR DETALHES DA API OMDb ---
+        async function fetchDetailsFromOMDb(title, type = 'movie') { // type pode ser 'movie', 'series', 'episode'
+            if (!OMDb_API_KEY || OMDb_API_KEY === 'SUA_CHAVE_AQUI') {
+                console.warn("Chave da OMDb API não configurada. Detalhes não serão carregados.");
+                return null;
+            }
+            // Tenta pegar o ano do título se for série (ex: "Nome da Série (2023)")
+            let yearMatch = title.match(/\((\d{4})\)/);
+            let year = yearMatch ? yearMatch[1] : '';
+
+            // Limpa o título para a busca na API (remove SXXEXX e ano)
+            let cleanedTitle = title.replace(/[\s\.-]?[sS]\d+[eE]\d+/, '').replace(/\(\d{4}\)/, '').trim();
+
+            const url = `https://www.omdbapi.com/?apikey=${OMDb_API_KEY}&t=${encodeURIComponent(cleanedTitle)}&type=${type}&y=${year}&plot=full&r=json`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.Response === "True") {
+                    return {
+                        title: data.Title,
+                        year: data.Year,
+                        genre: data.Genre,
+                        plot: data.Plot !== "N/A" ? data.Plot : "Sinopse não disponível.",
+                        poster: data.Poster !== "N/A" ? data.Poster : 'https://dummyimage.com/200x300/444/fff.png&text=Sem+Pôster',
+                        actors: data.Actors !== "N/A" ? data.Actors : "Informação não disponível.",
+                        imdbRating: data.imdbRating !== "N/A" ? data.imdbRating : "N/A",
+                        // Você pode adicionar mais campos aqui se precisar (Director, Awards, etc.)
+                    };
+                } else {
+                    console.warn(`Detalhes para "${title}" não encontrados na OMDb: ${data.Error}`);
+                    return null;
+                }
+            } catch (error) {
+                console.error("Erro ao buscar detalhes na OMDb:", error);
+                return null;
+            }
         }
 
         // --- Funções de Renderização Geral ---
         function renderContent() {
-            // Re-agrupa os itens filtrados para ter certeza que as seções estão atualizadas
             const { series, movies } = groupItems(filteredItems);
             moviesToDisplay = movies;
             seriesToDisplay = series;
 
-            // Renderiza Filmes na Grade
             renderMoviesGrid();
-
-            // Renderiza Séries na Grade
             renderSeriesGrid();
         }
 
-        // Função para renderizar filmes na grade (substitui renderMoviesCarousel)
         function renderMoviesGrid() {
-            moviesGrid.innerHTML = ''; // Limpa a grade de filmes
+            moviesGrid.innerHTML = '';
 
             if (moviesToDisplay.length === 0) {
                 moviesGrid.innerHTML = '<div class="text-center text-gray-400 py-10 col-span-full">Nenhum filme encontrado.</div>';
                 return;
             }
 
-            // Adiciona os cards de filmes à grade
             moviesToDisplay.forEach(item => {
                 const isLast = localStorage.getItem('last_film') === item.title;
                 const card = document.createElement('div');
@@ -257,22 +328,21 @@
                     <h3 class="text-sm truncate flex justify-between items-center">
                         <span>${item.title}</span> ${isLast ? '<span class="text-red-500 text-xs">🔴 Visto</span>' : ''}
                     </h3>`;
-                card.onclick = () => { openVideoLink(item); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+                // Ao clicar no card, abre o modal de detalhes
+                card.onclick = () => openDetailsModal(item, 'movie');
                 moviesGrid.appendChild(card);
             });
         }
 
         function renderSeriesGrid() {
-            seriesGrid.innerHTML = ''; // Limpa a grade de séries
+            seriesGrid.innerHTML = '';
 
             if (Object.keys(seriesToDisplay).length === 0) {
                 seriesGrid.innerHTML = '<div class="text-center text-gray-400 py-10 col-span-full">Nenhuma série encontrada.</div>';
                 return;
             }
 
-            // Adiciona os cards de série à grade
             Object.entries(seriesToDisplay).forEach(([name, eps]) => {
-                // Pega a miniatura do primeiro episódio como miniatura da série
                 const thumb = eps[0].thumb;
                 const card = document.createElement('div');
                 card.className = 'bg-gray-800 p-2 rounded-xl cursor-pointer hover:scale-105 transition duration-300 overflow-hidden';
@@ -280,7 +350,8 @@
                     <img src="${thumb}" alt="${name}" class="aspect-video object-cover rounded-lg mb-2 w-full" onerror="this.src='https://dummyimage.com/300x169/444/fff.png&text=Sem+Imagem'"/>
                     <h3 class="font-bold text-center truncate">${name}</h3>
                     <p class="text-sm text-center text-gray-400">${eps.length} episódios</p>`;
-                card.onclick = () => openSeries(name, eps);
+                // Ao clicar no card de série, abre o modal de detalhes da SÉRIE
+                card.onclick = () => openDetailsModal(eps[0], 'series'); // Usa o primeiro episódio para buscar detalhes da série
                 seriesGrid.appendChild(card);
             });
         }
@@ -290,13 +361,10 @@
             const q = searchInput.value.toLowerCase();
             const cat = categorySelect.value;
 
-            // Filtra todos os itens primeiro
             filteredItems = allItems.filter(i =>
                 i.title.toLowerCase().includes(q) &&
                 (!cat || i.group === cat)
             );
-
-            // Re-renderiza o conteúdo (filmes e séries) com os novos filtros
             renderContent();
         }
 
@@ -311,7 +379,7 @@
             });
         }
 
-        // --- Funções de Player de Vídeo e Modal de Episódios ---
+        // --- Funções de Player de Vídeo e Modal de Episódios (NÃO ALTERADAS SIGNIFICATIVAMENTE) ---
         function openSeries(name, eps) {
             currentSeriesName = name;
             currentSeriesEps = eps;
@@ -326,7 +394,7 @@
                 episodesList.appendChild(btn);
             });
             episodesModal.classList.remove('hidden');
-            episodesModal.classList.add('flex'); // Garante que o modal use flex para centralização
+            episodesModal.classList.add('flex');
         }
 
         function playEpisode(idx) {
@@ -338,37 +406,28 @@
             episodesModal.classList.remove('flex');
         }
 
-        // Função para lidar com o salvamento de tempo de vídeo
         let lastTimeSaved = 0;
         function onTimeUpdate(event) {
             const player = event.target;
             const savedTimeKey = `time_${player.dataset.currentItemTitle}`;
-            // Salva o tempo a cada 5 segundos ou no final do vídeo
             if (Math.floor(player.currentTime) % 5 === 0 && Math.floor(player.currentTime) !== lastTimeSaved) {
                 localStorage.setItem(savedTimeKey, player.currentTime);
                 lastTimeSaved = Math.floor(player.currentTime);
             }
-            // Garante que o tempo final é salvo (se o vídeo terminar)
             if (player.ended) {
-                localStorage.setItem(savedTimeKey, 0); // Reseta para 0 se o vídeo terminar
+                localStorage.setItem(savedTimeKey, 0);
             }
         }
 
         function openVideoLink(item) {
             if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
 
-            // Armazena o título do item atual no dataset do player para o onTimeUpdate
             player.dataset.currentItemTitle = item.title;
-
-            // Remove o listener anterior para evitar duplicatas ao reabrir o vídeo
             player.removeEventListener('timeupdate', onTimeUpdate);
 
-            // Salva o último item assistido (para filmes ou séries)
-            if (!currentSeriesName) { // É um filme
+            if (!currentSeriesName) {
                 localStorage.setItem('last_film', item.title);
-                renderMoviesGrid(); // Atualiza a grade para mostrar o '🔴' no filme
-            } else { // É um episódio de série
-                // Não precisamos renderizar a grade de séries aqui para atualizar o '🔴' no modal
+                renderMoviesGrid();
             }
 
             const savedTimeKey = `time_${item.title}`;
@@ -391,55 +450,91 @@
                         player.currentTime = savedTime;
                     }
                     player.play().catch(() => {});
-                    player.removeEventListener('loadedmetadata', resume); // Remove para não duplicar
+                    player.removeEventListener('loadedmetadata', resume);
                 });
             }
 
             playerContainer.classList.remove('hidden');
-            player.addEventListener('timeupdate', onTimeUpdate); // Adiciona o listener
-            window.scrollTo({ top: 0, behavior: 'smooth' }); // Rola para o topo onde o player está
+            player.addEventListener('timeupdate', onTimeUpdate);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // --- Event Listeners ---
-        closePlayer.onclick = () => {
-            if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
-            player.pause();
-            player.src = '';
-            playerContainer.classList.add('hidden');
-            player.removeEventListener('timeupdate', onTimeUpdate); // Remove o listener ao fechar
-            currentSeriesName = null; // Reseta o contexto da série
-            player.dataset.currentItemTitle = ''; // Limpa o título do item atual
+        // --- NOVO: Funções do Modal de Detalhes ---
+        async function openDetailsModal(item, type) {
+            currentPlayItem = item; // Salva o item para o botão "Assistir"
+            detailsModal.classList.remove('hidden');
+            detailsModal.classList.add('flex');
+
+            // Reseta o conteúdo para "Carregando..."
+            detailPoster.src = 'https://dummyimage.com/200x300/444/fff.png&text=Carregando...';
+            detailTitle.textContent = 'Carregando...';
+            detailYearGenre.textContent = 'Ano | Gênero';
+            detailPlot.textContent = 'Carregando sinopse...';
+            detailActors.textContent = 'Elenco: Carregando...';
+            detailRating.textContent = 'Avaliação IMDb: Carregando...';
+            playMovieButton.textContent = type === 'movie' ? '▶️ Assistir Filme' : '▶️ Ver Episódios';
+
+            // Se for uma série, o botão de assistir deve abrir o modal de episódios
+            if (type === 'series') {
+                playMovieButton.onclick = () => {
+                    closeDetailsModal.click(); // Fecha modal de detalhes
+                    // A série precisa estar disponível em seriesToDisplay para openSeries funcionar
+                    // Tenta encontrar a série pelo título base (sem SXXEXX)
+                    const seriesName = item.title.replace(/[\s\.-]?[sS]\d+[eE]\d+/, '').trim();
+                    const seriesData = seriesToDisplay[seriesName];
+                    if (seriesData) {
+                        openSeries(seriesName, seriesData);
+                    } else {
+                        alert("Série não encontrada para exibir episódios.");
+                    }
+                };
+            } else { // Se for filme, o botão de assistir deve tocar o filme diretamente
+                playMovieButton.onclick = () => {
+                    closeDetailsModal.click(); // Fecha modal de detalhes
+                    openVideoLink(item);
+                };
+            }
+
+            // Busca os detalhes da API OMDb
+            const details = await fetchDetailsFromOMDb(item.title, type);
+            if (details) {
+                detailPoster.src = details.poster;
+                detailTitle.textContent = details.title;
+                detailYearGenre.textContent = `${details.year} | ${details.genre}`;
+                detailPlot.textContent = details.plot;
+                detailActors.textContent = `Elenco: ${details.actors}`;
+                detailRating.textContent = `Avaliação IMDb: ${details.imdbRating}`;
+            } else {
+                // Se não encontrar na API, usa os dados do M3U e avisa
+                detailPoster.src = item.thumb;
+                detailTitle.textContent = item.title;
+                detailYearGenre.textContent = 'Informação não disponível';
+                detailPlot.textContent = 'Não foi possível carregar a sinopse detalhada.';
+                detailActors.textContent = 'Elenco: N/A';
+                detailRating.textContent = 'Avaliação IMDb: N/A';
+            }
+        }
+
+        closeDetailsModal.onclick = () => {
+            detailsModal.classList.add('hidden');
+            detailsModal.classList.remove('flex');
+            currentPlayItem = null; // Limpa o item de reprodução
         };
 
-        nextEpisodeBtn.onclick = () => {
-            if (currentSeriesEps && currentEpIndex !== null && currentEpIndex < currentSeriesEps.length - 1) {
-                playEpisode(currentEpIndex + 1);
-            }
-        };
-        prevEpisodeBtn.onclick = () => {
-            if (currentSeriesEps && currentEpIndex !== null && currentEpIndex > 0) {
-                playEpisode(currentEpIndex - 1);
-            }
-        };
-
+        // --- Event Listeners dos Botões Principais e Filtros ---
         searchInput.oninput = filterItems;
         categorySelect.onchange = filterItems;
-
-        closeModal.onclick = () => {
-            episodesModal.classList.add('hidden');
-            episodesModal.classList.remove('flex');
-        };
 
         // --- Funções de Carregamento da Lista ---
         async function loadList() {
             loadSpinner.classList.remove('hidden');
-            baixarBtn.disabled = true; // Desabilita o botão enquanto carrega
+            baixarBtn.disabled = true;
             limparListaBtn.disabled = true;
             searchInput.disabled = true;
             categorySelect.disabled = true;
 
             try {
-                // URL do seu arquivo M3U
+                // URL do seu arquivo M3U (confirmada a URL do seu código)
                 const playlistUrl = 'http://ratinhov1.click/get.php?username=656671671226&password=654158371180&type=m3u_plus&output=mpegts';
                 const res = await fetch(playlistUrl);
                 if (!res.ok) {
@@ -450,16 +545,16 @@
                 await saveToDB('m3u_data', text);
                 allItems = parseM3U(text);
                 updateCategories();
-                filterItems(); // Chama filterItems que agora chama renderContent()
+                filterItems();
 
                 alert('Lista de conteúdo carregada com sucesso!');
 
             } catch (e) {
                 console.error("Erro detalhado ao carregar lista:", e);
-                alert('Erro ao carregar lista: ' + e.message + '. Por favor, tente novamente ou verifique sua conexão.');
+                alert('Erro ao carregar lista: ' + e.message + '. Por favor, verifique sua conexão ou a URL da lista.');
             } finally {
                 loadSpinner.classList.add('hidden');
-                baixarBtn.disabled = false; // Habilita os botões de volta
+                baixarBtn.disabled = false;
                 limparListaBtn.disabled = false;
                 searchInput.disabled = false;
                 categorySelect.disabled = false;
@@ -471,7 +566,7 @@
         limparListaBtn.onclick = async () => {
             if (confirm('Tem certeza que deseja ATUALIZAR a lista? Isso apagará os dados salvos e recarregará a página.')) {
                 await clearDB();
-                location.reload(); // Recarrega a página para aplicar a limpeza
+                location.reload();
             }
         };
 
@@ -479,23 +574,19 @@
         function showSection(sectionElement) {
             moviesSection.classList.add('hidden');
             seriesSection.classList.add('hidden');
-
             sectionElement.classList.remove('hidden');
-            // Não há mais mySwiper.update(), pois o carrossel foi removido
         }
 
         showMoviesBtn.onclick = () => showSection(moviesSection);
         showSeriesBtn.onclick = () => showSection(seriesSection);
 
         // --- Inicialização ---
-        // Carrega lista salva do IndexedDB ao iniciar
         getFromDB('m3u_data').then(text => {
             if (text) {
                 allItems = parseM3U(text);
                 updateCategories();
-                filterItems(); // Chama filterItems que agora chama renderContent()
+                filterItems();
             } else {
-                // Se não houver dados salvos, exibe a mensagem de carregamento inicial
                 moviesGrid.innerHTML = '<div class="text-center text-gray-400 py-10 col-span-full">Clique em "CARREGAR LISTA DE CONTEUDO" para começar!</div>';
                 seriesGrid.innerHTML = '<div class="text-center text-gray-400 py-10 col-span-full">Nenhuma série disponível ainda. Carregue a lista de conteúdo.</div>';
             }
@@ -506,9 +597,7 @@
             seriesGrid.innerHTML = '<div class="text-center text-gray-400 py-10 col-span-full">Erro ao carregar dados.</div>';
         });
 
-        // Garante que a seção de filmes seja mostrada por padrão ao carregar
         showSection(moviesSection);
-
     </script>
 </body>
 </html>
